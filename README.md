@@ -1,255 +1,199 @@
-# 🛡️ GigArmour — AI-Powered Parametric Income Insurance for Gig Workers
+# GigArmour — AI-Powered Parametric Income Insurance for Gig Workers
 
-> Protecting India's delivery workforce from income loss caused by rain, floods, pollution, curfews & disruptions — automatically.
-
----
-
-## 🚨 The Problem
-
-India's 10M+ gig delivery workers (Zomato, Swiggy, Zepto, Amazon) lose **20–30% of monthly income** due to external disruptions like heavy rain, AQI spikes, and curfews — with **zero income protection** available today.
+Protecting India's delivery workforce from income loss caused by rain, pollution, and disruptions through automated parametric insurance.
 
 ---
 
-## 💡 Our Solution
+## 1. Problem Statement
 
-GigArmour is a **parametric income insurance platform** that:
+India has over 10 million gig delivery workers (Zomato, Swiggy, Amazon, Zepto).  
+Their income is directly dependent on daily working conditions.
 
-* 🤖 Uses AI to assess risk and calculate dynamic premiums
-* ⚡ Automatically triggers claims when disruptions are detected
-* 💸 Instantly pays workers — no claim filing needed
-* 🔍 Detects fraud using anomaly detection AI
-* 🌧️ Uses **Tomorrow.io** for hyper-local, real-time weather intelligence
+External disruptions such as:
+- Heavy rainfall
+- Air pollution (AQI spikes)
+- Floods and low visibility
+- Heatwaves and curfews
 
----
-
-## 🏗️ System Architecture
-
-🔍 Explore how GigArmour works under the hood  
-
-👉 **[View Full Architecture Diagram](https://drive.google.com/file/d/1NUybeqPgPuBFic3pa62bjfNXByBCXIj0/view?usp=drive_link)**
-
-## ⚙️ Core Features
-
-| Feature                     | Description                                               |
-| --------------------------- | --------------------------------------------------------- |
-| AI Risk Assessment          | Dynamic premium based on city, weather history, work zone |
-| Parametric Triggers         | Auto-detects rain >100mm, AQI >400, flood alerts          |
-| Instant Payouts             | UPI/Razorpay payment on trigger                           |
-| Fraud Detection             | GPS spoof detection, duplicate claim prevention           |
-| Dual Dashboards             | Worker + Admin analytics                                  |
-| 🌧️ Tomorrow.io Integration | Hyper-local precipitation, storm & severe weather alerts  |
+lead to **20–30% monthly income loss**, with **no existing income protection system**.
 
 ---
 
-## 🌧️ Tomorrow.io — Weather Intelligence Layer
+## 2. Target Users (Personas)
 
-GigArmour uses **https://www.tomorrow.io** as its primary weather data source.
+### Persona 1: Delivery Rider (Primary User)
+- Works 8–12 hours daily
+- Earnings depend on completed deliveries
+- Avoids working during rain/pollution due to safety
+- Needs instant financial protection
 
-### Why Tomorrow.io?
-
-* Hyper-local weather data (500m precision)
-* Real-time precipitation tracking
-* Forecast APIs for prediction
-* Severe weather alerts (floods, storms, heatwaves)
-* Historical data for AI risk scoring
-* Easy REST API integration
-
----
-
-### Triggers Powered by Tomorrow.io
-
-| Disruption      | Field                       | Threshold   | Payout |
-| --------------- | --------------------------- | ----------- | ------ |
-| Heavy Rain      | `precipitationIntensity`    | > 100mm/3hr | ₹500   |
-| Extreme Heat    | `temperature`               | > 45°C      | ₹400   |
-| Thunderstorm    | `weatherCode`               | Storm codes | ₹600   |
-| Flood Risk      | `precipitationAccumulation` | > 200mm/day | ₹1000  |
-| Visibility Loss | `visibility`                | < 200m      | ₹300   |
+### Persona 2: Platform Operator / Admin
+- Monitors claims and payouts
+- Ensures fraud prevention
+- Tracks system analytics
 
 ---
 
-### Sample API Call
+## 3. Solution Overview
 
-```javascript
-GET https://api.tomorrow.io/v4/weather/realtime
-  ?location=12.9716,77.5946
-  &fields=precipitationIntensity,temperature,weatherCode
-  &apikey=YOUR_TOMORROW_IO_KEY
-```
+GigArmour is a **parametric insurance platform** that:
 
----
-
-### Sample Response
-
-```json
-{
-  "data": {
-    "values": {
-      "precipitationIntensity": 112.4,
-      "temperature": 24.1,
-      "weatherCode": 4201
-    }
-  }
-}
-```
-
-> ⚡ When thresholds are crossed, GigArmour automatically triggers payouts.
+- Automatically detects disruptions using real-time data
+- Triggers payouts without manual claims
+- Uses AI to calculate personalized premiums
+- Prevents fraud using anomaly detection
 
 ---
 
-## 🔄 How It Works
+## 4. Application Workflow
 
-1. Worker registers → AI builds risk profile
-2. Worker buys weekly policy (₹20–₹70)
-3. Tomorrow.io monitors weather continuously
-4. Trigger condition met → claim auto-initiated
-5. Fraud detection runs → payout sent via UPI
+1. User registers and location is captured  
+2. AI generates a risk profile based on:
+   - City
+   - Weather history
+   - Work patterns  
 
----
+3. User purchases a weekly insurance plan  
+4. System continuously monitors weather and AQI data  
+5. If predefined thresholds are crossed:
+   - Trigger engine activates
+   - Claim is automatically generated  
 
-## 🛠️ Tech Stack
-
-| Layer       | Technology                               |
-| ----------- | ---------------------------------------- |
-| Frontend    | React.js                                 |
-| Backend     | **Node.js + Express.js**                 |
-| AI/ML       | Risk scoring & fraud detection (Node.js) |
-| Weather     | Tomorrow.io API                          |
-| Air Quality | OpenWeatherMap API                       |
-| Maps        | Google Maps API                         |
-| Payments    | Razorpay(TEST MODE)                                 |
-| Database    | **MongoDB (Mongoose)**                   |
+6. Fraud detection layer validates activity  
+7. Payout is sent instantly via UPI  
 
 ---
 
-## 📁 Folder Structure
+## 5. Weekly Premium Model
 
-```
-GigArmour/
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── db.js
-│   │   ├── models/
-│   │   │   ├── user.model.js
-│   │   │   ├── policy.model.js
-│   │   │   └── claim.model.js
-│   │   ├── routes/
-│   │   │   ├── user.routes.js
-│   │   │   ├── policy.routes.js
-│   │   │   └── claim.routes.js
-│   │   ├── controllers/
-│   │   │   ├── user.controller.js
-│   │   │   ├── policy.controller.js
-│   │   │   └── claim.controller.js
-│   │   ├── integrations/
-│   │   │   ├── tomorrowIo.js
-│   │   │   ├── razorpay.js
-│   │   │   └── maps.js
-│   │   ├── triggers/
-│   │   │   ├── weatherTrigger.js
-│   │   │   ├── pollutionTrigger.js
-│   │   │   └── triggerEngine.js
-│   │   ├── ai/
-│   │   │   ├── riskAssessment.js
-│   │   │   └── fraudDetection.js
-│   │   ├── utils/
-│   │   │   └── scheduler.js
-│   │   │
-│   │   └── app.js
-│   │
-│   ├── server.js
-│   ├── package.json
-│   └── .env
-├── frontend/
-├── docs/
-└── README.md
-```
+The premium is dynamically calculated using:
+
+- Location risk (flood-prone / high AQI zones)
+- Historical weather data
+- Worker activity level
+
+### Example:
+- Low-risk city → ₹20/week  
+- Medium-risk → ₹40/week  
+- High-risk → ₹70/week  
+
+This ensures:
+- Affordability for workers  
+- Sustainability of the system  
 
 ---
 
-## 🚀 Getting Started
+## 6. Parametric Triggers
 
-### Prerequisites
+Claims are triggered automatically when thresholds are met:
 
-* Node.js 18+
-* MongoDB (Local / Atlas)
-* Tomorrow.io API Key
-* Razorpay Test Account
-
----
-
-### Installation
-
-```bash
-git clone https://github.com/YOUR_USERNAME/GigArmour.git
-cd GigArmour/backend
-
-npm install
-
-cp .env.example .env
-
-npm run dev
-```
+| Condition        | Parameter                    | Threshold        | Payout |
+|-----------------|----------------------------|------------------|--------|
+| Heavy Rain      | precipitationIntensity      | > 100mm / 3hr    | ₹500   |
+| Extreme Heat    | temperature                 | > 45°C           | ₹400   |
+| Flood Risk      | precipitationAccumulation   | > 200mm/day      | ₹1000  |
+| Low Visibility  | visibility                  | < 200m           | ₹300   |
+| AQI Spike       | AQI                         | > 400            | ₹500   |
 
 ---
 
-## 🔑 Environment Variables
+## 7. Platform Choice (Web vs Mobile)
 
-```
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/gigarmour
+Current implementation: **Web-based system**
 
-TOMORROW_IO_API_KEY=your_key_here
-OPENWEATHER_API_KEY=your_key_here
-RAZORPAY_KEY_ID=your_key_here
-RAZORPAY_KEY_SECRET=your_secret_here
-GOOGLE_MAPS_KEY=your_key_here
-```
+Reasoning:
+- Faster development and testing
+- Easier API integration
+- Suitable for admin dashboards
 
-> ⚠️ Never commit `.env` file.
+Future scope:
+- Mobile app (React Native) for real-time worker usage
 
 ---
 
-## ⏱️ Background Jobs
+## 8. AI/ML Integration
 
-* Weather monitoring (cron jobs)
-* Auto trigger engine
-* Fraud detection checks
+### 1. Risk Assessment
+- Uses historical weather + location data
+- Assigns risk score to each worker
+- Determines premium dynamically
 
----
+### 2. Fraud Detection
+- Detects:
+  - GPS spoofing
+  - Duplicate claims
+  - Unusual activity patterns
 
-## 👥 Team
-
-| Name     | Role         |
-| -------- | ------------ |
-| [Manikant] | Backend & AI |
-| [Ishaan Varshney] | Frontend    |
-| [Dev Mishra] | Business     |
-| [Nikhil Pal] | DevOps and Backend    |
-
----
-
-## 📅 Development Phases
-
-* ✅ Phase 1: Ideation & Architecture
-* 🔄 Phase 2: Backend Development
-* ⏳ Phase 3: AI + Dashboard + Demo
+### 3. Future Enhancements
+- Predictive risk modeling
+- Behavioral scoring
+- Real-time anomaly detection
 
 ---
 
-## 📜 License
+## 9. System Architecture
+
+🔍 View full architecture diagram:  
+https://drive.google.com/file/d/1NUybeqPgPuBFic3pa62bjfNXByBCXIj0/view?usp=drive_link
+
+---
+
+## 10. Tech Stack
+
+| Layer       | Technology                      |
+|------------|--------------------------------|
+| Frontend   | React.js                       |
+| Backend    | Node.js + Express.js           |
+| Database   | MongoDB (Mongoose)             |
+| AI Layer   | Node.js (custom logic)         |
+| Weather API| Tomorrow.io                    |
+| AQI Data   | OpenWeatherMap                 |
+| Maps       | Google Maps API                |
+| Payments   | Razorpay (Test Mode)           |
+
+---
+
+## 11. Development Plan
+
+### Phase 1
+- Problem validation
+- Architecture design
+
+### Phase 2 (Current)
+- Backend APIs
+- Trigger engine
+- Database setup
+
+### Phase 3
+- AI models
+- Dashboard
+- Demo system
+
+---
+
+## 12. Repository
+
+GitHub Repository:  
+https://github.com/YOUR_USERNAME/GigArmour
+
+---
+
+## 13. Demo Video
+
+(Attach your 2-minute video link here)
+
+---
+
+## 14. Future Scope
+
+- Mobile application
+- Insurance company partnerships
+- Advanced ML fraud detection
+- Multi-city scaling
+- Real-time GPS tracking
+
+---
+
+## License
 
 MIT License
-
----
-
-## ⭐ Future Scope
-
-* Real-time GPS tracking
-* Advanced ML fraud detection
-* Insurance company integration
-* Mobile app (React Native)
-* Multi-city scaling
-
----
