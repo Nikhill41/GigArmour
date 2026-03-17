@@ -25,11 +25,9 @@ GigArmour is a **parametric income insurance platform** that:
 ## 🏗️ System Architecture
 
 ```
-Worker App → Backend (Node.js + Express) → Trigger Engine → AI Layer → Payments (Razorpay)
-                                        ↓
-                                 Tomorrow.io API
-                                        ↓
-                                    MongoDB
+## 🏗️ System Architecture
+
+👉 [View Full Architecture Diagram](https://drive.google.com/file/d/1NUybeqPgPuBFic3pa62bjfNXByBCXIj0/view?usp=drive_link)
 ```
 
 ---
