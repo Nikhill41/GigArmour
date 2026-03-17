@@ -24,13 +24,9 @@ GigArmour is a **parametric income insurance platform** that:
 
 ## 🏗️ System Architecture
 
-```
-## 🏗️ System Architecture
+🔍 Explore how GigArmour works under the hood  
 
-👉 [View Full Architecture Diagram](https://drive.google.com/file/d/1NUybeqPgPuBFic3pa62bjfNXByBCXIj0/view?usp=drive_link)
-```
-
----
+👉 **[View Full Architecture Diagram](https://drive.google.com/file/d/1NUybeqPgPuBFic3pa62bjfNXByBCXIj0/view?usp=drive_link)**
 
 ## ⚙️ Core Features
 
