@@ -122,8 +122,8 @@ GET https://api.tomorrow.io/v4/weather/realtime
 | AI/ML       | Risk scoring & fraud detection (Node.js) |
 | Weather     | Tomorrow.io API                          |
 | Air Quality | OpenWeatherMap API                       |
-| Maps        | Google Maps API                          |
-| Payments    | Razorpay                                 |
+| Maps        | Google Maps API                         |
+| Payments    | Razorpay(TEST MODE)                                 |
 | Database    | **MongoDB (Mongoose)**                   |
 
 ---
@@ -229,10 +229,10 @@ GOOGLE_MAPS_KEY=your_key_here
 
 | Name     | Role         |
 | -------- | ------------ |
-| [Name 1] | Backend & AI |
-| [Name 2] | Frontend     |
-| [Name 3] | Business     |
-| [Name 4] | DevOps       |
+| [Manikant] | Backend & AI |
+| [Ishaan Varshney] | Frontend    |
+| [Dev Mishra] | Business     |
+| [Nikhil Pal] | DevOps and Backend    |
 
 ---
 
