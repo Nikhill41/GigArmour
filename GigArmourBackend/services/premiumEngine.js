@@ -5,9 +5,9 @@ const RiskProfile = require("../models/RiskProfile");
 
 const calculateWeeklyPremium = (riskTier) => {
   const rates = {
-    low: 20,
-    medium: 40,
-    high: 70
+    low: 200,
+    medium: 400,
+    high: 700
   };
 
   return rates[riskTier] || null;

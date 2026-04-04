@@ -95,7 +95,13 @@ const calculateFraudRiskScore = async (claim, user) => {
   await claim.save();
 
   if (claim.status === "approved") {
-    await payoutService.processClaimPayout(claim._id);
+    try {
+      await payoutService.processClaimPayout(claim._id);
+    } catch (error) {
+      console.warn(`[FraudDetectionService] ⚠️  Could not process payout: ${error.message}. Claim status remains "approved" but payout may be pending manual processing.`);
+      // Don't fail the entire claim creation if payout processing fails
+      // The user's claim is still approved, payout can be retried later
+    }
   }
 
   return {

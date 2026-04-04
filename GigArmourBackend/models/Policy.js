@@ -5,6 +5,7 @@ const policySchema = new mongoose.Schema({
   weekStartDate: { type: Date, required: true },
   weekEndDate: { type: Date, required: true },
   premium: { type: Number, required: true },
+  plan: { type: String, enum: ["bronze", "silver", "diamond"], required: true },
   riskTier: { type: String, enum: ["low", "medium", "high"], required: true },
   status: { type: String, enum: ["active", "expired", "cancelled"], default: "active" },
   coverageDetails: {

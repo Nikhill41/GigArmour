@@ -12,8 +12,42 @@ const claimsController = {
       }
 
       const claims = await Claim.find({ userId }).sort({ createdAt: -1 });
-      return res.status(200).json({ claims });
+      
+      // Calculate balance from approved and provisional claims
+      let approvedBalance = 0;
+      let provisionalBalance = 0;
+      let underReviewBalance = 0;
+      let totalClaimsCount = 0;
+      
+      claims.forEach((claim) => {
+        if (claim.status === "approved") {
+          approvedBalance += claim.payoutAmount || 0;
+        } else if (claim.status === "provisional") {
+          // Provisional claims are 70% of the payout
+          provisionalBalance += Math.floor((claim.payoutAmount || 0) * 0.7);
+        } else if (claim.status === "under_review") {
+          // Under review shows potential payout
+          underReviewBalance += claim.payoutAmount || 0;
+        }
+        totalClaimsCount++;
+      });
+      
+      const totalAvailableBalance = approvedBalance + provisionalBalance;
+      
+      console.log(`[ClaimsController] User ${userId}: ${totalClaimsCount} claims, approved=₹${approvedBalance}, provisional=₹${provisionalBalance}, under_review=₹${underReviewBalance}`);
+      
+      return res.status(200).json({ 
+        claims,
+        balance: {
+          approvedBalance,
+          provisionalBalance,
+          underReviewBalance,
+          totalAvailableBalance,
+          totalClaimsCount
+        }
+      });
     } catch (error) {
+      console.error("[ClaimsController] Error fetching claims:", error);
       return res.status(500).json({ message: "Unable to fetch claims" });
     }
   },

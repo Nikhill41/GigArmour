@@ -4,6 +4,7 @@ const cron = require("node-cron");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
+const { seedPolicyPlans } = require("./migrations/seedPolicyPlans");
 
 const authRoutes = require("./routes/auth");
 const policyRoutes = require("./routes/policy");
@@ -15,11 +16,61 @@ const Policy = require("./models/Policy");
 
 const app = express();
 
-app.use(cors());
+// CORS Configuration for production
+const allowedOrigins = [
+  'http://localhost:5173',     // Local development
+  'http://localhost:3000',      // Alternative local dev
+  'http://localhost:5174',      // Alternative Vite port
+  process.env.FRONTEND_URL,     // Vercel frontend URL (set in Railway env)
+  /vercel\.app$/                // Any Vercel preview deployment
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or node-cron)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return allowed === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      callback(new Error('CORS policy violation'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
+}));
+
 app.use(express.json());
 
+// Health check endpoint - for Vercel/Railway monitoring
 app.get("/", (req, res) => {
-  res.json({ status: "GigArmour backend running" });
+  res.json({ 
+    status: "GigArmour backend running",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    uptime: process.uptime()
+  });
+});
+
+// Health check with database status
+app.get("/health", (req, res) => {
+  const dbStatus = require("mongoose").connection.readyState;
+  res.json({
+    status: dbStatus === 1 ? "healthy" : "unhealthy",
+    database: dbStatus === 1 ? "connected" : "disconnected",
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.use("/api/auth", authRoutes);
@@ -30,7 +81,14 @@ app.use("/api/payout", payoutRoutes);
 
 const PORT = process.env.PORT || 5000;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Run migrations
+  try {
+    await seedPolicyPlans();
+  } catch (error) {
+    console.error("Migration failed:", error.message);
+  }
+
   const checkTriggersForAll = async () => {
     const today = new Date();
     const userIds = await Policy.find({

@@ -2,12 +2,25 @@ const Razorpay = require("razorpay");
 
 const Claim = require("../models/Claim");
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+let razorpay = null;
+
+const initializeRazorpay = () => {
+  if (!razorpay && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+  return razorpay;
+};
 
 const processClaimPayout = async (claimId) => {
+  const razorpayInstance = initializeRazorpay();
+  if (!razorpayInstance) {
+    console.warn("[PayoutService] Razorpay is not configured, skipping payout");
+    return { message: "Razorpay not configured", claim: null };
+  }
+
   const claim = await Claim.findById(claimId).populate("userId");
   if (!claim) {
     throw new Error("Claim not found");
@@ -38,7 +51,7 @@ const processClaimPayout = async (claimId) => {
     throw new Error("Invalid payout amount");
   }
 
-  const contact = await razorpay.contacts.create({
+  const contact = await razorpayInstance.contacts.create({
     name: claim.userId.name,
     contact: claim.userId.phone,
     type: "customer",
@@ -46,7 +59,7 @@ const processClaimPayout = async (claimId) => {
   });
 
   const vpaAddress = `${claim.userId.phone}@upi`;
-  const fundAccount = await razorpay.fundAccount.create({
+  const fundAccount = await razorpayInstance.fundAccount.create({
     contact_id: contact.id,
     account_type: "vpa",
     vpa: {
@@ -54,7 +67,7 @@ const processClaimPayout = async (claimId) => {
     }
   });
 
-  const payout = await razorpay.payouts.create({
+  const payout = await razorpayInstance.payouts.create({
     account_number: process.env.RAZORPAY_ACCOUNT_NUMBER,
     fund_account_id: fundAccount.id,
     amount: payoutAmount * 100,
