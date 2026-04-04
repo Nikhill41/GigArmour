@@ -22,13 +22,18 @@ const authController = {
         return res.status(400).json({ message: "Email is required" });
       }
 
+      console.log(`[Auth] Request OTP for email: ${email}`);
+
       const normalizedEmail = email.trim().toLowerCase();
       const existingUser = await User.findOne({ email: normalizedEmail });
       if (existingUser) {
+        console.log(`[Auth] Email already registered: ${normalizedEmail}`);
         return res.status(409).json({ message: "Email already registered" });
       }
 
       const otp = String(Math.floor(100000 + Math.random() * 900000));
+      console.log(`[Auth] Generated OTP: ${otp}`);
+      
       const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -37,10 +42,21 @@ const authController = {
         { email: normalizedEmail, otpHash, expiresAt },
         { upsert: true, new: true }
       );
+      
+      console.log(`[Auth] OTP saved to database for: ${normalizedEmail}`);
 
-      await emailService.sendOtpEmail(normalizedEmail, otp);
-      return res.status(200).json({ message: "OTP sent to email" });
+      try {
+        await emailService.sendOtpEmail(normalizedEmail, otp);
+        console.log(`[Auth] ✅ OTP email sent successfully to: ${normalizedEmail}`);
+        return res.status(200).json({ message: "OTP sent to email" });
+      } catch (emailError) {
+        console.error(`[Auth] ❌ Email send failed:`, emailError.message);
+        console.error(`[Auth] Full error:`, emailError);
+        return res.status(500).json({ message: "Failed to send OTP email. Check server logs." });
+      }
     } catch (error) {
+      console.error(`[Auth] ❌ RequestOTP error:`, error.message);
+      console.error(`[Auth] Full error:`, error);
       return res.status(500).json({ message: "Unable to send OTP" });
     }
   },
