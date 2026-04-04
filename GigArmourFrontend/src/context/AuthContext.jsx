@@ -12,8 +12,8 @@ const getStoredUser = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getStoredUser());
 
-  const login = async (phone, password) => {
-    const response = await api.post("/auth/login", { phone, password });
+  const login = async (email, password) => {
+    const response = await api.post("/auth/login", { email, password });
     const { token, user: userData } = response.data;
 
     localStorage.setItem("token", token);
@@ -21,6 +21,11 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
 
     return userData;
+  };
+
+  const requestOtp = async (email) => {
+    const response = await api.post("/auth/request-otp", { email });
+    return response.data;
   };
 
   const register = async (formData) => {
@@ -44,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     () => ({
       user,
       login,
+      requestOtp,
       register,
       logout
     }),

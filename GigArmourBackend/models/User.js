@@ -2,16 +2,21 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  phone: { type: String, required: true, unique: true },
-  city: { type: String, required: true, trim: true },
-  pincode: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  phone: { type: String, unique: true, sparse: true, trim: true },
+  city: { type: String, trim: true },
+  pincode: { type: String },
   platform: {
     type: String,
     enum: ["Zomato", "Swiggy", "Amazon", "Zepto", "Blinkit"],
-    required: true
+    required: false
   },
-  averageDailyDeliveries: { type: Number, required: true },
-  workHoursPerDay: { type: Number, required: true },
+  averageDailyDeliveries: { type: Number },
+  workHoursPerDay: { type: Number },
+  location: {
+    lat: { type: Number },
+    lon: { type: Number }
+  },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ["rider", "admin"], default: "rider" },
   createdAt: { type: Date, default: Date.now }

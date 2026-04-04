@@ -1,4 +1,5 @@
 const Claim = require("../models/Claim");
+const User = require("../models/User");
 const payoutService = require("../services/payoutService");
 const triggerEngine = require("../services/triggerEngine");
 
@@ -23,7 +24,16 @@ const claimsController = {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const result = await triggerEngine.checkTriggersForUser(userId);
+      const { lat, lon } = req.body || {};
+      const coords = lat && lon ? { lat: Number(lat), lon: Number(lon) } : null;
+      if (coords) {
+        await User.findByIdAndUpdate(
+          userId,
+          { location: { lat: coords.lat, lon: coords.lon } },
+          { new: false }
+        );
+      }
+      const result = await triggerEngine.checkTriggersForUser(userId, coords);
 
       if (result.triggered === false && result.claims?.length === 0) {
         return res.status(200).json({

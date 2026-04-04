@@ -7,10 +7,10 @@ const User = require("../models/User");
 const fraudDetectionService = require("../services/fraudDetectionService");
 const { estimateAqiFromPm25 } = require("./premiumEngine");
 
-const fetchRealtimeWeather = async (city) => {
+const fetchRealtimeWeather = async (location) => {
   const response = await axios.get("https://api.tomorrow.io/v4/weather/realtime", {
     params: {
-      location: `${city}, India`,
+      location,
       fields:
         "rainIntensity,temperature,visibility,particulateMatter25,aqiEPA,precipitationProbability",
       units: "metric",
@@ -139,13 +139,20 @@ const evaluateTriggers = async (userId, weatherSnapshot) => {
   };
 };
 
-const checkTriggersForUser = async (userId) => {
+const checkTriggersForUser = async (userId, coords) => {
   const user = await User.findById(userId);
   if (!user) {
     return { triggered: false, claims: [], weatherSnapshot: null };
   }
 
-  const values = await fetchRealtimeWeather(user.city);
+  const locationParam =
+    coords?.lat && coords?.lon
+      ? `${coords.lat},${coords.lon}`
+      : user.location?.lat && user.location?.lon
+        ? `${user.location.lat},${user.location.lon}`
+        : `${user.city}, India`;
+
+  const values = await fetchRealtimeWeather(locationParam);
   const rainIntensity = values.rainIntensity || 0;
   const temperature = values.temperature || 0;
   const visibility = values.visibility || 0;
@@ -182,7 +189,9 @@ const checkTriggersForUser = async (userId) => {
       rainIntensity,
       temperature,
       visibility: visibility * 1000,
-      finalAQI
+      finalAQI,
+      lat: coords?.lat ?? user.location?.lat ?? null,
+      lon: coords?.lon ?? user.location?.lon ?? null
     }
   };
 };

@@ -29,10 +29,10 @@ const estimateAqiFromPm25 = (avgPM25) => {
   return 201 + ((avgPM25 - 150.5) / 149.4) * 99;
 };
 
-const fetchRealtimeMetrics = async (city) => {
+const fetchRealtimeMetrics = async (location) => {
   const response = await axios.get("https://api.tomorrow.io/v4/weather/realtime", {
     params: {
-      location: `${city}, India`,
+      location,
       fields: "rainIntensity,temperature,visibility,particulateMatter25",
       units: "metric",
       apikey: process.env.TOMORROW_API_KEY
@@ -47,6 +47,10 @@ const calculateRiskProfile = async (userId) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
+  }
+
+  if (!user.city) {
+    throw new Error("City is required to calculate risk profile");
   }
 
   console.log("[PremiumEngine] User found:", user.name, user.city);
@@ -88,7 +92,11 @@ const calculateRiskProfile = async (userId) => {
   let weatherValues = {};
 
   try {
-    weatherValues = await fetchRealtimeMetrics(user.city);
+    const locationParam =
+      user.location?.lat && user.location?.lon
+        ? `${user.location.lat},${user.location.lon}`
+        : `${user.city}, India`;
+    weatherValues = await fetchRealtimeMetrics(locationParam);
     console.log("[PremiumEngine] Tomorrow.io response:", JSON.stringify(weatherValues, null, 2));
 
     const rainIntensity = weatherValues.rainIntensity || 0;

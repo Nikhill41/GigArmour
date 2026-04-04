@@ -48,6 +48,7 @@ const formatDate = (value) => {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const [profileUser, setProfileUser] = useState(user || null);
   const [activePolicy, setActivePolicy] = useState(null);
   const [claims, setClaims] = useState([]);
   const [riskProfile, setRiskProfile] = useState(null);
@@ -55,16 +56,24 @@ const Dashboard = () => {
   const [isBuying, setIsBuying] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [weatherSnapshot, setWeatherSnapshot] = useState(null);
+  const [policyForm, setPolicyForm] = useState({
+    city: "",
+    pincode: "",
+    platform: "Zomato",
+    averageDailyDeliveries: "",
+    workHoursPerDay: ""
+  });
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
       try {
-        const [policyRes, claimsRes, riskRes] = await Promise.all([
-          api.get("/policy/active"),
+        const [policyRes, claimsRes, riskRes, meRes] = await Promise.all([
+          api.get("/policies/active"),
           api.get("/claims/my-claims"),
-          api.get("/auth/risk-profile")
+          api.get("/auth/risk-profile"),
+          api.get("/auth/me")
         ]);
 
         if (!isMounted) {
@@ -74,6 +83,7 @@ const Dashboard = () => {
         setActivePolicy(policyRes.data?.policy || policyRes.data || null);
         setClaims(claimsRes.data?.claims || claimsRes.data || []);
         setRiskProfile(riskRes.data?.riskProfile || riskRes.data || null);
+        setProfileUser(meRes.data?.user || null);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
       } finally {
@@ -93,6 +103,9 @@ const Dashboard = () => {
   const weeklyPremium = riskProfile?.weeklyPremium;
   const riskScore = riskProfile?.riskScore ?? 0;
   const riskProgress = Math.min(100, Math.max(0, riskScore));
+  const locationLabel = profileUser?.location?.lat && profileUser?.location?.lon
+    ? `${profileUser.location.lat.toFixed(4)}, ${profileUser.location.lon.toFixed(4)}`
+    : "Not captured yet";
 
   const coverageRows = useMemo(() => {
     const coverage = activePolicy?.coverageDetails || {};
@@ -115,21 +128,68 @@ const Dashboard = () => {
 
   const recentClaims = claims.slice(0, 5);
 
+  const handlePolicyChange = (event) => {
+    const { name, value } = event.target;
+    setPolicyForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const getBrowserLocation = () => {
+    if (!navigator.geolocation) {
+      return Promise.reject(new Error("Geolocation not supported"));
+    }
+
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve(position.coords),
+        (error) => reject(error),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  };
+
   const fetchActivePolicy = async () => {
-    const response = await api.get("/policy/active");
+    const response = await api.get("/policies/active");
     setActivePolicy(response.data?.policy || response.data || null);
   };
 
   const handleBuyCoverage = async () => {
     setIsBuying(true);
     try {
-      const res = await api.post("/policy/purchase");
+      if (
+        !policyForm.city ||
+        !policyForm.pincode ||
+        !policyForm.platform ||
+        policyForm.averageDailyDeliveries === "" ||
+        policyForm.workHoursPerDay === ""
+      ) {
+        toast.error("Fill all required fields before buying coverage");
+        setIsBuying(false);
+        return;
+      }
+
+      const coords = await getBrowserLocation();
+      const payload = {
+        ...policyForm,
+        averageDailyDeliveries: Number(policyForm.averageDailyDeliveries),
+        workHoursPerDay: Number(policyForm.workHoursPerDay),
+        lat: coords.latitude,
+        lon: coords.longitude
+      };
+
+      const res = await api.post("/policies/purchase", payload);
       const policy = res.data?.policy || res.data;
       setActivePolicy(policy || null);
       toast.success(`Coverage active! ₹${policy?.premium ?? "--"} deducted.`);
       await fetchActivePolicy();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Purchase failed. Try again.");
+      const message =
+        error?.message?.includes("Geolocation")
+          ? "Location permission required"
+          : error.response?.data?.message || "Purchase failed. Try again.";
+      toast.error(message);
     } finally {
       setIsBuying(false);
     }
@@ -138,7 +198,11 @@ const Dashboard = () => {
   const handleWeatherCheck = async () => {
     setIsChecking(true);
     try {
-      const res = await api.post("/claims/manual-check");
+      const coords = await getBrowserLocation();
+      const res = await api.post("/claims/manual-check", {
+        lat: coords.latitude,
+        lon: coords.longitude
+      });
       if (res.data.triggered) {
         toast.success(
           `⚠️ Disruption detected! Claim filed for ₹${res.data.claims[0].payoutAmount}`
@@ -151,7 +215,11 @@ const Dashboard = () => {
 
       setWeatherSnapshot(res.data.weatherSnapshot);
     } catch (error) {
-      toast.error("Weather check failed. Check your connection.");
+      const message =
+        error?.message?.includes("Geolocation")
+          ? "Location permission required"
+          : "Weather check failed. Check your connection.";
+      toast.error(message);
     } finally {
       setIsChecking(false);
     }
@@ -209,14 +277,79 @@ const Dashboard = () => {
                 </div>
               </div>
             ) : (
-              <button
-                type="button"
-                className="mt-6 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
-                onClick={handleBuyCoverage}
-                disabled={isBuying}
-              >
-                {isBuying ? "Activating..." : "Buy This Week's Coverage"}
-              </button>
+              <div className="mt-6 grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    className="rounded-xl border border-slate-200 px-4 py-3"
+                    name="city"
+                    placeholder="City"
+                    value={policyForm.city}
+                    onChange={handlePolicyChange}
+                    required
+                  />
+                  <input
+                    className="rounded-xl border border-slate-200 px-4 py-3"
+                    name="pincode"
+                    placeholder="Pincode"
+                    value={policyForm.pincode}
+                    onChange={handlePolicyChange}
+                    required
+                  />
+                </div>
+                <select
+                  className="rounded-xl border border-slate-200 px-4 py-3"
+                  name="platform"
+                  value={policyForm.platform}
+                  onChange={handlePolicyChange}
+                >
+                  <option value="Zomato">Zomato</option>
+                  <option value="Swiggy">Swiggy</option>
+                  <option value="Amazon">Amazon</option>
+                  <option value="Zepto">Zepto</option>
+                  <option value="Blinkit">Blinkit</option>
+                </select>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    className="rounded-xl border border-slate-200 px-4 py-3"
+                    name="averageDailyDeliveries"
+                    type="number"
+                    min="0"
+                    placeholder="Avg daily deliveries"
+                    value={policyForm.averageDailyDeliveries}
+                    onChange={handlePolicyChange}
+                    required
+                  />
+                  <input
+                    className="rounded-xl border border-slate-200 px-4 py-3"
+                    name="workHoursPerDay"
+                    type="number"
+                    min="0"
+                    placeholder="Hours per day"
+                    value={policyForm.workHoursPerDay}
+                    onChange={handlePolicyChange}
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
+                  onClick={handleBuyCoverage}
+                  disabled={isBuying}
+                >
+                  {isBuying ? "Activating..." : "Buy This Week's Coverage"}
+                </button>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  <p className="font-semibold text-slate-800">Coverage highlights</p>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    {coverageRows.map((row) => (
+                      <div key={row.key} className="flex items-center justify-between">
+                        <span>{row.label}</span>
+                        <span className="text-slate-800">Rs {row.payout}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -252,6 +385,9 @@ const Dashboard = () => {
                   style={{ width: `${riskProfile?.riskScore ?? 0}%` }}
                 />
               </div>
+            </div>
+            <div className="mt-4 text-xs text-slate-500">
+              Last known location: {locationLabel}
             </div>
           </div>
         </section>

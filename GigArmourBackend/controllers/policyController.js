@@ -1,5 +1,7 @@
 const Policy = require("../models/Policy");
 const RiskProfile = require("../models/RiskProfile");
+const User = require("../models/User");
+const premiumEngine = require("../services/premiumEngine");
 
 const policyController = {
   purchasePolicy: async (req, res) => {
@@ -7,6 +9,32 @@ const policyController = {
       const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const {
+        city,
+        pincode,
+        platform,
+        averageDailyDeliveries,
+        workHoursPerDay,
+        lat,
+        lon
+      } = req.body;
+
+      if (
+        !city ||
+        !pincode ||
+        !platform ||
+        averageDailyDeliveries === undefined ||
+        workHoursPerDay === undefined
+      ) {
+        return res.status(400).json({
+          message: "city, pincode, platform, averageDailyDeliveries, workHoursPerDay required"
+        });
+      }
+
+      if (lat === undefined || lon === undefined) {
+        return res.status(400).json({ message: "Location permission required" });
       }
 
       const today = new Date();
@@ -22,10 +50,20 @@ const policyController = {
         });
       }
 
-      const riskProfile = await RiskProfile.findOne({ userId });
-      if (!riskProfile) {
-        return res.status(404).json({ message: "Risk profile not found" });
-      }
+      await User.findByIdAndUpdate(
+        userId,
+        {
+          city,
+          pincode,
+          platform,
+          averageDailyDeliveries: Number(averageDailyDeliveries),
+          workHoursPerDay: Number(workHoursPerDay),
+          location: { lat: Number(lat), lon: Number(lon) }
+        },
+        { new: true }
+      );
+
+      const riskProfile = await premiumEngine.calculateRiskProfile(userId);
 
       const weekStartDate = new Date();
       const weekEndDate = new Date(weekStartDate);

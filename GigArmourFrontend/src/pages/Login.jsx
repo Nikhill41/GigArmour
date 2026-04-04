@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { useAuth } from "../context/AuthContext";
@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [credentials, setCredentials] = useState({ phone: "", password: "" });
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
@@ -19,7 +19,7 @@ const Login = () => {
     event.preventDefault();
     setLoading(true);
     try {
-      await login(credentials.phone, credentials.password);
+      await login(credentials.email, credentials.password);
       toast.success("Welcome back");
       navigate("/dashboard");
     } catch (error) {
@@ -36,9 +36,10 @@ const Login = () => {
         <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
           <input
             className="rounded-xl border border-slate-200 px-4 py-3"
-            name="phone"
-            placeholder="Phone"
-            value={credentials.phone}
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={credentials.email}
             onChange={handleChange}
             required
           />
@@ -59,6 +60,12 @@ const Login = () => {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+        <p className="mt-6 text-sm text-slate-500">
+          New here?{" "}
+          <Link className="font-semibold text-slate-900" to="/register">
+            Create an account
+          </Link>
+        </p>
       </div>
     </div>
   );
