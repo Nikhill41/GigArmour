@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import WeatherTriggerPanel from "../components/WeatherTriggerPanel";
 import { useAuth } from "../context/AuthContext";
 
 const statusBadge = {
@@ -35,6 +36,30 @@ const triggerIcons = {
   aqi_spike: "AQ"
 };
 
+// Plans are now fetched from database API, not hardcoded
+const cityOptions = [
+  "Agra",
+  "Ahmedabad",
+  "Allahabad",
+  "Bangalore",
+  "Bengaluru",
+  "Bhopal",
+  "Chennai",
+  "Delhi",
+  "Ghaziabad",
+  "Hyderabad",
+  "Jaipur",
+  "Kanpur",
+  "Kolkata",
+  "Lucknow",
+  "Meerut",
+  "Mumbai",
+  "Noida",
+  "Pune",
+  "Surat",
+  "Varanasi"
+];
+
 const formatDate = (value) => {
   if (!value) {
     return "--";
@@ -52,38 +77,53 @@ const Dashboard = () => {
   const [activePolicy, setActivePolicy] = useState(null);
   const [claims, setClaims] = useState([]);
   const [riskProfile, setRiskProfile] = useState(null);
+  const [estimatedPremium, setEstimatedPremium] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [calculatingPremium, setCalculatingPremium] = useState(false);
   const [isBuying, setIsBuying] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [weatherSnapshot, setWeatherSnapshot] = useState(null);
+  const [availablePlans, setAvailablePlans] = useState([]);
   const [policyForm, setPolicyForm] = useState({
     city: "",
     pincode: "",
     platform: "Zomato",
     averageDailyDeliveries: "",
-    workHoursPerDay: ""
+    workHoursPerDay: "",
+    plan: "silver"
   });
+  const [detectedCity, setDetectedCity] = useState("");
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
       try {
-        const [policyRes, claimsRes, riskRes, meRes] = await Promise.all([
+        const [policyRes, claimsRes, riskRes, meRes, plansRes] = await Promise.all([
           api.get("/policies/active"),
           api.get("/claims/my-claims"),
           api.get("/auth/risk-profile"),
-          api.get("/auth/me")
+          api.get("/auth/me"),
+          api.get("/policies/plans")
         ]);
 
         if (!isMounted) {
           return;
         }
 
-        setActivePolicy(policyRes.data?.policy || policyRes.data || null);
+        // FIX: Only treat as active policy if it has _id (real DB object)
+        const policyData = policyRes.data?.policy;
+        const activePolicy = policyData?._id ? policyData : null;
+        
+        console.log("[Dashboard] Active policy loaded:", activePolicy ? `ID: ${activePolicy._id}, Plan: ${activePolicy.plan}` : "No active policy");
+        setActivePolicy(activePolicy);
+        
         setClaims(claimsRes.data?.claims || claimsRes.data || []);
         setRiskProfile(riskRes.data?.riskProfile || riskRes.data || null);
         setProfileUser(meRes.data?.user || null);
+        setAvailablePlans(plansRes.data?.plans || []);
+        
+        console.log(`[Dashboard] Loaded ${plansRes.data?.plans?.length || 0} available plans from database`);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
       } finally {
@@ -99,6 +139,43 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Calculate estimated premium when city is selected
+  useEffect(() => {
+    const calculateEstimatedPremium = async () => {
+      if (!policyForm.city || activePolicy) {
+        setEstimatedPremium(null);
+        return;
+      }
+
+      setCalculatingPremium(true);
+      try {
+        // Fetch risk profile for the selected city by making a temporary update
+        const response = await api.post("/policies/estimate-premium", {
+          city: policyForm.city,
+          plan: policyForm.plan
+        });
+        
+        const baseWeeklyPremium = response.data?.weeklyPremium || 0;
+        const selectedPlan = availablePlans.find(p => p.name === policyForm.plan);
+        const multiplier = selectedPlan?.multiplier || 1.0;
+        const finalPrice = Math.round(baseWeeklyPremium * multiplier);
+        
+        setEstimatedPremium(finalPrice);
+        console.log(`[Dashboard] Estimated premium for ${policyForm.city}: ₹${finalPrice}`);
+      } catch (error) {
+        console.error("Failed to calculate estimated premium:", error);
+      } finally {
+        setCalculatingPremium(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      calculateEstimatedPremium();
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [policyForm.city, policyForm.plan, availablePlans, activePolicy]);
+
   const riskTier = riskProfile?.riskTier || "medium";
   const weeklyPremium = riskProfile?.weeklyPremium;
   const riskScore = riskProfile?.riskScore ?? 0;
@@ -108,23 +185,35 @@ const Dashboard = () => {
     : "Not captured yet";
 
   const coverageRows = useMemo(() => {
-    const coverage = activePolicy?.coverageDetails || {};
-    const defaults = {
-      heavy_rain: { threshold: 100, unit: "mm/3hr", payout: 500 },
-      extreme_heat: { threshold: 45, unit: "celsius", payout: 400 },
-      flood_risk: { threshold: 200, unit: "mm/day", payout: 1000 },
-      low_visibility: { threshold: 200, unit: "meters", payout: 300 },
-      aqi_spike: { threshold: 400, unit: "AQI", payout: 500 }
-    };
+    // FIX: Use activePolicy coverage only if it has _id (is a real policy)
+    let baseCoverage;
+    
+    if (activePolicy?._id && activePolicy?.coverageDetails) {
+      baseCoverage = activePolicy.coverageDetails;
+    } else {
+      // Fallback to silver plan from database
+      const silverPlan = availablePlans.find(p => p.name === "silver");
+      baseCoverage = silverPlan?.coverageDetails || {};
+    }
 
-    return Object.keys(defaults).map((key) => ({
+    return Object.keys(baseCoverage).map((key) => ({
       key,
       label: triggerLabels[key],
-      threshold: coverage[key]?.threshold ?? defaults[key].threshold,
-      unit: coverage[key]?.unit ?? defaults[key].unit,
-      payout: coverage[key]?.payout ?? defaults[key].payout
+      threshold: baseCoverage[key]?.threshold,
+      unit: baseCoverage[key]?.unit,
+      payout: baseCoverage[key]?.payout
     }));
-  }, [activePolicy]);
+  }, [activePolicy, availablePlans]);
+
+  const selectedPlan = availablePlans.find(p => p.name === policyForm.plan) || availablePlans.find(p => p.name === "silver");
+  const selectedPlanConfig = selectedPlan || {};
+  const selectedPlanRows = Object.keys(selectedPlanConfig.coverageDetails || {}).map((key) => ({
+    key,
+    label: triggerLabels[key],
+    threshold: selectedPlanConfig.coverageDetails[key].threshold,
+    unit: selectedPlanConfig.coverageDetails[key].unit,
+    payout: selectedPlanConfig.coverageDetails[key].payout
+  }));
 
   const recentClaims = claims.slice(0, 5);
 
@@ -150,9 +239,52 @@ const Dashboard = () => {
     });
   };
 
+  const reverseGeocode = async (coords) => {
+    const params = new URLSearchParams({
+      format: "json",
+      lat: String(coords.latitude),
+      lon: String(coords.longitude)
+    });
+
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
+      {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "GigArmour/1.0"
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Reverse geocoding failed");
+    }
+
+    const data = await response.json();
+    const address = data?.address || {};
+
+    const city =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.suburb ||
+      address.county ||
+      "";
+    const pincode = address.postcode || "";
+
+    return { city, pincode };
+  };
+
   const fetchActivePolicy = async () => {
-    const response = await api.get("/policies/active");
-    setActivePolicy(response.data?.policy || response.data || null);
+    try {
+      const response = await api.get("/policies/active");
+      // FIX: Only treat as active policy if it has _id (real DB object)
+      const policyData = response.data?.policy;
+      const activePolicy = policyData?._id ? policyData : null;
+      console.log("[Dashboard] fetchActivePolicy result:", activePolicy ? `ID: ${activePolicy._id}, Plan: ${activePolicy.plan}` : "No active policy");
+      setActivePolicy(activePolicy);
+    } catch (error) {
+      console.error("Error fetching active policy:", error);
+    }
   };
 
   const handleBuyCoverage = async () => {
@@ -163,7 +295,8 @@ const Dashboard = () => {
         !policyForm.pincode ||
         !policyForm.platform ||
         policyForm.averageDailyDeliveries === "" ||
-        policyForm.workHoursPerDay === ""
+        policyForm.workHoursPerDay === "" ||
+        !policyForm.plan
       ) {
         toast.error("Fill all required fields before buying coverage");
         setIsBuying(false);
@@ -171,8 +304,35 @@ const Dashboard = () => {
       }
 
       const coords = await getBrowserLocation();
+      let city = policyForm.city;
+      let pincode = policyForm.pincode;
+
+      if (!city || !pincode) {
+        try {
+          const geo = await reverseGeocode(coords);
+          city = city || geo.city;
+          pincode = pincode || geo.pincode;
+          setDetectedCity(geo.city || "");
+          setPolicyForm((prev) => ({
+            ...prev,
+            city: city || prev.city,
+            pincode: pincode || prev.pincode
+          }));
+        } catch (geoError) {
+          console.warn("Reverse geocode failed:", geoError.message);
+        }
+      }
+
+      if (!city || !pincode) {
+        toast.error("Unable to detect city or pincode. Please enter manually.");
+        setIsBuying(false);
+        return;
+      }
+
       const payload = {
         ...policyForm,
+        city,
+        pincode,
         averageDailyDeliveries: Number(policyForm.averageDailyDeliveries),
         workHoursPerDay: Number(policyForm.workHoursPerDay),
         lat: coords.latitude,
@@ -181,7 +341,11 @@ const Dashboard = () => {
 
       const res = await api.post("/policies/purchase", payload);
       const policy = res.data?.policy || res.data;
-      setActivePolicy(policy || null);
+      console.log("[Dashboard] Policy purchase response:", policy ? `ID: ${policy._id}, Plan: ${policy.plan}` : "No policy in response");
+      
+      // FIX: Only set as active if it has _id (real DB object)
+      const activePolicy = policy?._id ? policy : null;
+      setActivePolicy(activePolicy);
       toast.success(`Coverage active! ₹${policy?.premium ?? "--"} deducted.`);
       await fetchActivePolicy();
     } catch (error) {
@@ -226,6 +390,7 @@ const Dashboard = () => {
   };
 
   const policyStatus = activePolicy ? "Active" : "Inactive";
+  const planSelectionDisabled = Boolean(activePolicy);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -249,8 +414,41 @@ const Dashboard = () => {
               </span>
             </div>
 
+            <div className="mt-6 grid gap-4">
+              <div className="grid gap-4 lg:grid-cols-3">
+                {availablePlans.map((plan) => (
+                  <button
+                    key={plan.name}
+                    type="button"
+                    onClick={() => {
+                      if (!planSelectionDisabled) {
+                        setPolicyForm((prev) => ({ ...prev, plan: plan.name }));
+                      }
+                    }}
+                    disabled={planSelectionDisabled}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      policyForm.plan === plan.name
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-900"
+                    } ${planSelectionDisabled ? "cursor-not-allowed opacity-60" : ""}`}
+                  >
+                    <p className="text-sm uppercase tracking-widest opacity-70">{plan.label}</p>
+                    <p className="mt-2 text-sm">{plan.description}</p>
+                    <div className="mt-3 text-xs opacity-80">
+                      {Object.keys(plan.coverageDetails).length} triggers included
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {planSelectionDisabled ? (
+                <p className="text-xs text-slate-500">
+                  Plan selection is locked while an active policy is running.
+                </p>
+              ) : null}
+            </div>
+
             {activePolicy ? (
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <p className="text-xs uppercase tracking-widest text-slate-400">Week range</p>
                   <p className="mt-2 text-lg font-semibold">
@@ -275,18 +473,30 @@ const Dashboard = () => {
                     <p className="mt-2 text-lg font-semibold capitalize">{riskTier}</p>
                   )}
                 </div>
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <p className="text-xs uppercase tracking-widest text-slate-400">Plan</p>
+                  <p className="mt-2 text-lg font-semibold capitalize">
+                    {activePolicy?.plan || "--"}
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="mt-6 grid gap-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <input
+                  <select
                     className="rounded-xl border border-slate-200 px-4 py-3"
                     name="city"
-                    placeholder="City"
                     value={policyForm.city}
                     onChange={handlePolicyChange}
                     required
-                  />
+                  >
+                    <option value="">Select city</option>
+                    {cityOptions.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     className="rounded-xl border border-slate-200 px-4 py-3"
                     name="pincode"
@@ -296,6 +506,11 @@ const Dashboard = () => {
                     required
                   />
                 </div>
+                {detectedCity ? (
+                  <p className="text-xs text-slate-500">
+                    Location detected: {detectedCity}
+                  </p>
+                ) : null}
                 <select
                   className="rounded-xl border border-slate-200 px-4 py-3"
                   name="platform"
@@ -339,11 +554,15 @@ const Dashboard = () => {
                   {isBuying ? "Activating..." : "Buy This Week's Coverage"}
                 </button>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  <p className="font-semibold text-slate-800">Coverage highlights</p>
+                  <p className="font-semibold text-slate-800">
+                    {selectedPlanConfig.label} triggers
+                  </p>
                   <div className="mt-3 grid gap-2 text-sm">
-                    {coverageRows.map((row) => (
+                    {selectedPlanRows.map((row) => (
                       <div key={row.key} className="flex items-center justify-between">
-                        <span>{row.label}</span>
+                        <span>
+                          {row.label} · {row.threshold} {row.unit}
+                        </span>
                         <span className="text-slate-800">Rs {row.payout}</span>
                       </div>
                     ))}
@@ -369,14 +588,23 @@ const Dashboard = () => {
               )}
             </div>
             <p className="mt-4 text-sm text-slate-500">Weekly premium</p>
-            {loading ? (
+            {loading || calculatingPremium ? (
               <div className="mt-3 h-7 w-28 animate-pulse rounded-full bg-slate-100" />
-            ) : (
+            ) : activePolicy ? (
               <p className="text-2xl font-semibold">₹{weeklyPremium ?? "--"}/week</p>
+            ) : policyForm.city ? (
+              <div>
+                <p className="text-2xl font-semibold">₹{estimatedPremium ?? "--"}/week</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  {selectedPlan?.multiplier === 0.9 ? "Bronze (10% discount)" : selectedPlan?.multiplier === 1.25 ? "Diamond (25% premium)" : "Silver (standard)"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-2xl font-semibold text-slate-400">Select a city</p>
             )}
             <div className="mt-4">
               <div className="flex items-center justify-between text-sm text-slate-500">
-                <span>{riskProfile?.city || user?.city || "City"}</span>
+                <span>{riskProfile?.city || policyForm.city || user?.city || "City"}</span>
                 <span>{riskProfile?.riskScore ?? 0}/100</span>
               </div>
               <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
@@ -435,6 +663,12 @@ const Dashboard = () => {
             </table>
           </div>
         </section>
+
+        {profileUser?.role === "admin" && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <WeatherTriggerPanel />
+          </section>
+        )}
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
