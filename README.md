@@ -1,5 +1,4 @@
 # GigArmour — AI-Powered Parametric Income Insurance for Gig Workers
-
 Protecting India's delivery workforce from income loss caused by rain, pollution, and disruptions through automated parametric insurance.
 
 ---
@@ -131,7 +130,7 @@ Future scope:
 
 ---
 
-## 9. 🚨 Adversarial Defense & Anti-Spoofing Strategy
+## 9. Adversarial Defense & Anti-Spoofing Strategy
 
 > **Market Crash Scenario:** A coordinated fraud ring involving 500 fake delivery partners with spoofed GPS is attempting to drain GigArmour's liquidity pool by filing simultaneous false parametric claims. Here is how GigArmour detects and neutralizes the threat — without punishing legitimate workers.
 
@@ -185,8 +184,8 @@ During a disruption event, the system runs anomaly checks:
 
 | Behavioral Signal | Legitimate Worker | Fraud Ring Member |
 |------------------|------------------|------------------|
-| Active in claimed zone in last 7 days | ✅ Yes | ❌ No |
-| Platform app activity (Zomato/Swiggy) in last 24hrs | ✅ Yes | ❌ No / Absent |
+| Active in claimed zone in last 7 days |  Yes |  No |
+| Platform app activity (Zomato/Swiggy) in last 24hrs | Yes |  No / Absent |
 | Device sensor data (accelerometer, gyroscope) | Shows movement | Static / abnormal |
 | Claim timing vs. last delivery timestamp | Within hours | Never delivered recently |
 | Number of co-claimants from same device fingerprint | 1 | Multiple (shared device) |
@@ -333,22 +332,16 @@ https://drive.google.com/file/d/1NUybeqPgPuBFic3pa62bjfNXByBCXIj0/view?usp=drive
 - Demo system
 - Network graph fraud analysis (Layer 3 + 4)
 
----
-
-## 13. Repository
-
-GitHub Repository:  
-https://github.com/YOUR_USERNAME/GigArmour
 
 ---
 
-## 14. Demo Video
+## 13. Demo Video
 
-(Attach your 2-minute video link here)
+[video] :(https://youtu.be/8piHoe90DF8?si=iQVVLAGbX18gseE4)
 
 ---
 
-## 15. Future Scope
+## 14. Future Scope
 
 - Mobile application
 - Insurance company partnerships
