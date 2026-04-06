@@ -20,12 +20,15 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',     // Local development
   'http://localhost:3000',      // Alternative local dev
-  'http://localhost:5174',      // Alternative Vite port
+  'http://localhost:5175',      // Alternative Vite port
+  'http://localhost:5176',      // Alternative Vite port
   process.env.FRONTEND_URL,     // Vercel frontend URL (set in Railway env)
   /vercel\.app$/                // Any Vercel preview deployment
 ].filter(Boolean);
 
-app.use(cors({
+console.log("[CORS] Allowed origins:", allowedOrigins);
+
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or node-cron)
     if (!origin) return callback(null, true);
@@ -49,9 +52,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
-}));
+};
 
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Handle preflight requests for all routes
+app.options(/.*/, cors(corsOptions));
 
 // Health check endpoint - for Vercel/Railway monitoring
 app.get("/", (req, res) => {
